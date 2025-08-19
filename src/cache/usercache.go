@@ -10,7 +10,7 @@ import (
 )
 
 type UserManager struct {
-	Users map[string]*user
+	Users map[string]*User
 	Mu   sync.RWMutex
 }
 
@@ -20,21 +20,21 @@ type userPayload struct {
 	value any
 }
 
-type user struct {
-	id        string
-	cache     map[string]cacheItem
-	mu        sync.RWMutex
-	expiresAt time.Time
+type User struct {
+	Id        string
+	Cache     map[string]CacheItem
+	Mu        sync.RWMutex
+	ExpiresAt time.Time
 }
 
-type cacheItem struct {
-	value      any
-	expiryTime time.Time
+type CacheItem struct {
+	Value      any
+	ExpiryTime time.Time
 }
 
 func NewUserManager() *UserManager {
 	um := &UserManager{
-		Users: make(map[string]*user),
+		Users: make(map[string]*User),
 	}
 	um.userCacheCleanup(4 * time.Hour)
 	return um
@@ -46,10 +46,10 @@ func (um *UserManager) AddNewUser(userExpirationTime time.Duration) (string, err
 		return "", logs.ErrGuid
 	}
 	um.Mu.Lock()
-	um.Users[userId] = &user{
-		id:        userId,
-		cache:     make(map[string]cacheItem),
-		expiresAt: time.Now().Add(userExpirationTime),
+	um.Users[userId] = &User{
+		Id:        userId,
+		Cache:     make(map[string]CacheItem),
+		ExpiresAt: time.Now().Add(userExpirationTime),
 	}
 	um.Mu.Unlock()
 	return userId, nil
@@ -69,7 +69,7 @@ func (um *UserManager) AddOrUpdateUserCache(usertoken string, key string, value 
 			fmt.Println("User not found:", usertoken)
 			return logs.ErrUser
 		}
-		if hasExpired(user.expiresAt) {
+		if hasExpired(user.ExpiresAt) {
 			return logs.ErrUserExpired
 		}
 		done := user.setCache(key, value, expirationTime)
@@ -82,33 +82,33 @@ func (um *UserManager) AddOrUpdateUserCache(usertoken string, key string, value 
 	return logs.ErrPayLoad
 }
 
-func (u *user) setCache(key string, value any, ttl time.Duration) bool {
+func (u *User) setCache(key string, value any, ttl time.Duration) bool {
 	var expiresAt time.Time
-	u.mu.RLock()
-	responseData, found := u.cache[key]
-	u.mu.RUnlock()
+	u.Mu.RLock()
+	responseData, found := u.Cache[key]
+	u.Mu.RUnlock()
 	if found {
-		if hasExpired(responseData.expiryTime) {
+		if hasExpired(responseData.ExpiryTime) {
 			return false
 		}
-		expiresAt = responseData.expiryTime.Add(ttl)
+		expiresAt = responseData.ExpiryTime.Add(ttl)
 	} else {
 		expiresAt = time.Now().Add(ttl)
 	}
 	if ttl == 0 {
 		expiresAt = time.Time{}
 	}
-	u.mu.Lock()
-	u.cache[key] = cacheItem{
-		value:      value,
-		expiryTime: expiresAt,
+	u.Mu.Lock()
+	u.Cache[key] = CacheItem{
+		Value:      value,
+		ExpiryTime: expiresAt,
 	}
 	if ttl == 0 {
-		u.expiresAt = time.Time{}
+		u.ExpiresAt = time.Time{}
 	} else {
-		u.expiresAt = u.expiresAt.Add(ttl)
+		u.ExpiresAt = u.ExpiresAt.Add(ttl)
 	}
-	u.mu.Unlock()
+	u.Mu.Unlock()
 
 	return true
 }
@@ -122,14 +122,14 @@ func (um *UserManager) ReadUser(usertoken string) (any, error) {
 		if !ok {
 			return nil, logs.ErrUser
 		}
-		if hasExpired(user.expiresAt) {
+		if hasExpired(user.ExpiresAt) {
 			return nil, logs.ErrReadUser
 		}
-		for key, cache := range user.cache {
-			if time.Now().After(cache.expiryTime) && !cache.expiryTime.IsZero() {
-				user.mu.Lock()
-				delete(user.cache, key)
-				user.mu.Unlock()
+		for key, cache := range user.Cache {
+			if time.Now().After(cache.ExpiryTime) && !cache.ExpiryTime.IsZero() {
+				user.Mu.Lock()
+				delete(user.Cache, key)
+				user.Mu.Unlock()
 			}
 		}
 		return user, nil
@@ -146,7 +146,7 @@ func (um *UserManager) ReadDataFromCache(usertoken string, key string) (any, err
 		if !ok {
 			return nil, logs.ErrUser
 		}
-		if hasExpired(user.expiresAt) {
+		if hasExpired(user.ExpiresAt) {
 			um.Mu.Lock()
 			delete(um.Users, usertoken)
 			um.Mu.Unlock()
@@ -163,20 +163,20 @@ func (um *UserManager) ReadDataFromCache(usertoken string, key string) (any, err
 	return nil, logs.ErrReadUserToken
 }
 
-func (u *user) get(key string) (any, error) {
-	u.mu.RLock()
-	data, ok := u.cache[key]
-	u.mu.RUnlock()
+func (u *User) get(key string) (any, error) {
+	u.Mu.RLock()
+	data, ok := u.Cache[key]
+	u.Mu.RUnlock()
 	if !ok {
 		return nil, logs.ErrReadCacheKey
 	}
-	if hasExpired(data.expiryTime) {
-		u.mu.Lock()
-		delete(u.cache, key)
-		u.mu.Unlock()
+	if hasExpired(data.ExpiryTime) {
+		u.Mu.Lock()
+		delete(u.Cache, key)
+		u.Mu.Unlock()
 		return nil, logs.ErrCacheExpired
 	}
-	return data.value, nil
+	return data.Value, nil
 }
 
 func (um *UserManager) UserFlush(interval time.Duration) {
@@ -187,7 +187,7 @@ func (um *UserManager) UserFlush(interval time.Duration) {
 			now := time.Now()
 			um.Mu.Lock()
 			for id, user := range um.Users {
-				if now.After(user.expiresAt) {
+				if now.After(user.ExpiresAt) {
 					delete(um.Users, id)
 				}
 			}
@@ -204,13 +204,13 @@ func (um *UserManager) CacheFlush(interval time.Duration) {
 			now := time.Now()
 			um.Mu.RLock()
 			for _, user := range um.Users {
-				user.mu.Lock()
-				for key, value := range user.cache {
-					if !value.expiryTime.IsZero() && now.After(value.expiryTime) {
-						delete(user.cache, key)
+				user.Mu.Lock()
+				for key, value := range user.Cache {
+					if !value.ExpiryTime.IsZero() && now.After(value.ExpiryTime) {
+						delete(user.Cache, key)
 					}
 				}
-				user.mu.Unlock()
+				user.Mu.Unlock()
 			}
 			um.Mu.RUnlock()
 		}
@@ -225,20 +225,20 @@ func (um *UserManager) userCacheCleanup(interval time.Duration) {
 			now := time.Now()
 			um.Mu.Lock()
 			for id, user := range um.Users {
-				if now.After(user.expiresAt) {
+				if now.After(user.ExpiresAt) {
 					delete(um.Users, id)
 				}
 			}
 			um.Mu.Unlock()
 			um.Mu.RLock()
 			for _, user := range um.Users {
-				user.mu.Lock()
-				for key, value := range user.cache {
-					if !value.expiryTime.IsZero() && now.After(value.expiryTime) {
-						delete(user.cache, key)
+				user.Mu.Lock()
+				for key, value := range user.Cache {
+					if !value.ExpiryTime.IsZero() && now.After(value.ExpiryTime) {
+						delete(user.Cache, key)
 					}
 				}
-				user.mu.Unlock()
+				user.Mu.Unlock()
 			}
 			um.Mu.RUnlock()
 		}
@@ -273,17 +273,17 @@ func (um *UserManager) RemoveUserCache(usertoken string, key string) bool {
 	if !ok {
 		return false
 	}
-	user.mu.RLock()
-	value, done := user.cache[key]
-	user.mu.RUnlock()
+	user.Mu.RLock()
+	value, done := user.Cache[key]
+	user.Mu.RUnlock()
 	if !done {
 		return false
 	}
-	user.mu.Lock()
-	difference := time.Until(value.expiryTime)
-	user.expiresAt = user.expiresAt.Add(-difference)
-	delete(user.cache, key)
-	user.mu.Unlock()
+	user.Mu.Lock()
+	difference := time.Until(value.ExpiryTime)
+	user.ExpiresAt = user.ExpiresAt.Add(-difference)
+	delete(user.Cache, key)
+	user.Mu.Unlock()
 	return true
 }
 
