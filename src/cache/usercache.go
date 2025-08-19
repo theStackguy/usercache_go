@@ -10,8 +10,8 @@ import (
 )
 
 type UserManager struct {
-	users map[string]*user
-	mu    sync.RWMutex
+	Users map[string]*user
+	Mu   sync.RWMutex
 }
 
 type userPayload struct {
@@ -34,7 +34,7 @@ type cacheItem struct {
 
 func NewUserManager() *UserManager {
 	um := &UserManager{
-		users: make(map[string]*user),
+		Users: make(map[string]*user),
 	}
 	um.userCacheCleanup(4 * time.Hour)
 	return um
@@ -45,13 +45,13 @@ func (um *UserManager) AddNewUser(userExpirationTime time.Duration) (string, err
 	if err != nil {
 		return "", logs.ErrGuid
 	}
-	um.mu.Lock()
-	um.users[userId] = &user{
+	um.Mu.Lock()
+	um.Users[userId] = &user{
 		id:        userId,
 		cache:     make(map[string]cacheItem),
 		expiresAt: time.Now().Add(userExpirationTime),
 	}
-	um.mu.Unlock()
+	um.Mu.Unlock()
 	return userId, nil
 }
 
@@ -62,9 +62,9 @@ func (um *UserManager) AddOrUpdateUserCache(usertoken string, key string, value 
 		value: value,
 	}
 	if up.HasAllNeededData(true) {
-		um.mu.RLock()
-		user, ok := um.users[usertoken]
-		um.mu.RUnlock()
+		um.Mu.RLock()
+		user, ok := um.Users[usertoken]
+		um.Mu.RUnlock()
 		if !ok {
 			fmt.Println("User not found:", usertoken)
 			return logs.ErrUser
@@ -116,9 +116,9 @@ func (u *user) setCache(key string, value any, ttl time.Duration) bool {
 func (um *UserManager) ReadUser(usertoken string) (any, error) {
 
 	if usertoken != "" {
-		um.mu.RLock()
-		user, ok := um.users[usertoken]
-		um.mu.RUnlock()
+		um.Mu.RLock()
+		user, ok := um.Users[usertoken]
+		um.Mu.RUnlock()
 		if !ok {
 			return nil, logs.ErrUser
 		}
@@ -140,16 +140,16 @@ func (um *UserManager) ReadUser(usertoken string) (any, error) {
 func (um *UserManager) ReadDataFromCache(usertoken string, key string) (any, error) {
 
 	if usertoken != "" {
-		um.mu.RLock()
-		user, ok := um.users[usertoken]
-		um.mu.RUnlock()
+		um.Mu.RLock()
+		user, ok := um.Users[usertoken]
+		um.Mu.RUnlock()
 		if !ok {
 			return nil, logs.ErrUser
 		}
 		if hasExpired(user.expiresAt) {
-			um.mu.Lock()
-			delete(um.users, usertoken)
-			um.mu.Unlock()
+			um.Mu.Lock()
+			delete(um.Users, usertoken)
+			um.Mu.Unlock()
 			return nil, logs.ErrReadUser
 		}
 		value, done := user.get(key)
@@ -185,13 +185,13 @@ func (um *UserManager) UserFlush(interval time.Duration) {
 		defer ticker.Stop()
 		for range ticker.C {
 			now := time.Now()
-			um.mu.Lock()
-			for id, user := range um.users {
+			um.Mu.Lock()
+			for id, user := range um.Users {
 				if now.After(user.expiresAt) {
-					delete(um.users, id)
+					delete(um.Users, id)
 				}
 			}
-			um.mu.Unlock()
+			um.Mu.Unlock()
 		}
 	}()
 }
@@ -202,8 +202,8 @@ func (um *UserManager) CacheFlush(interval time.Duration) {
 		defer ticker.Stop()
 		for range ticker.C {
 			now := time.Now()
-			um.mu.RLock()
-			for _, user := range um.users {
+			um.Mu.RLock()
+			for _, user := range um.Users {
 				user.mu.Lock()
 				for key, value := range user.cache {
 					if !value.expiryTime.IsZero() && now.After(value.expiryTime) {
@@ -212,7 +212,7 @@ func (um *UserManager) CacheFlush(interval time.Duration) {
 				}
 				user.mu.Unlock()
 			}
-			um.mu.RUnlock()
+			um.Mu.RUnlock()
 		}
 	}()
 }
@@ -223,15 +223,15 @@ func (um *UserManager) userCacheCleanup(interval time.Duration) {
 		defer ticker.Stop()
 		for range ticker.C {
 			now := time.Now()
-			um.mu.Lock()
-			for id, user := range um.users {
+			um.Mu.Lock()
+			for id, user := range um.Users {
 				if now.After(user.expiresAt) {
-					delete(um.users, id)
+					delete(um.Users, id)
 				}
 			}
-			um.mu.Unlock()
-			um.mu.RLock()
-			for _, user := range um.users {
+			um.Mu.Unlock()
+			um.Mu.RLock()
+			for _, user := range um.Users {
 				user.mu.Lock()
 				for key, value := range user.cache {
 					if !value.expiryTime.IsZero() && now.After(value.expiryTime) {
@@ -240,36 +240,36 @@ func (um *UserManager) userCacheCleanup(interval time.Duration) {
 				}
 				user.mu.Unlock()
 			}
-			um.mu.RUnlock()
+			um.Mu.RUnlock()
 		}
 	}()
 }
 
 func (um *UserManager) FlushAll() {
-	um.mu.Lock()
-	for id := range um.users {
-		delete(um.users, id)
+	um.Mu.Lock()
+	for id := range um.Users {
+		delete(um.Users, id)
 	}
-	um.mu.Unlock()
+	um.Mu.Unlock()
 }
 
 func (um *UserManager) RemoveUser(usertoken string) bool {
-	um.mu.RLock()
-	_, ok := um.users[usertoken]
-	um.mu.RUnlock()
+	um.Mu.RLock()
+	_, ok := um.Users[usertoken]
+	um.Mu.RUnlock()
 	if !ok {
 		return false
 	}
-	um.mu.Lock()
-	delete(um.users, usertoken)
-	um.mu.Unlock()
+	um.Mu.Lock()
+	delete(um.Users, usertoken)
+	um.Mu.Unlock()
 	return true
 }
 
 func (um *UserManager) RemoveUserCache(usertoken string, key string) bool {
-	um.mu.RLock()
-	user, ok := um.users[usertoken]
-	um.mu.RUnlock()
+	um.Mu.RLock()
+	user, ok := um.Users[usertoken]
+	um.Mu.RUnlock()
 	if !ok {
 		return false
 	}
