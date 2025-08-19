@@ -9,7 +9,7 @@ import (
 	"github.com/theStackguy/usercache_go/src/util"
 )
 
-type userManager struct {
+type UserManager struct {
 	users map[string]*user
 	mu    sync.RWMutex
 }
@@ -32,15 +32,15 @@ type cacheItem struct {
 	expiryTime time.Time
 }
 
-func NewUserManager() *userManager {
-	um := &userManager{
+func NewUserManager() *UserManager {
+	um := &UserManager{
 		users: make(map[string]*user),
 	}
 	um.userCacheCleanup(4 * time.Hour)
 	return um
 }
 
-func (um *userManager) AddNewUser(userExpirationTime time.Duration) (string, error) {
+func (um *UserManager) AddNewUser(userExpirationTime time.Duration) (string, error) {
 	userId, err := util.NewString()
 	if err != nil {
 		return "", logs.ErrGuid
@@ -55,7 +55,7 @@ func (um *userManager) AddNewUser(userExpirationTime time.Duration) (string, err
 	return userId, nil
 }
 
-func (um *userManager) AddOrUpdateUserCache(usertoken string, key string, value any, expirationTime time.Duration) error {
+func (um *UserManager) AddOrUpdateUserCache(usertoken string, key string, value any, expirationTime time.Duration) error {
 	up := userPayload{
 		id:    usertoken,
 		key:   key,
@@ -113,7 +113,7 @@ func (u *user) setCache(key string, value any, ttl time.Duration) bool {
 	return true
 }
 
-func (um *userManager) ReadUser(usertoken string) (any, error) {
+func (um *UserManager) ReadUser(usertoken string) (any, error) {
 
 	if usertoken != "" {
 		um.mu.RLock()
@@ -137,7 +137,7 @@ func (um *userManager) ReadUser(usertoken string) (any, error) {
 	return nil, logs.ErrReadUserToken
 }
 
-func (um *userManager) ReadDataFromCache(usertoken string, key string) (any, error) {
+func (um *UserManager) ReadDataFromCache(usertoken string, key string) (any, error) {
 
 	if usertoken != "" {
 		um.mu.RLock()
@@ -179,7 +179,7 @@ func (u *user) get(key string) (any, error) {
 	return data.value, nil
 }
 
-func (um *userManager) UserFlush(interval time.Duration) {
+func (um *UserManager) UserFlush(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	go func() {
 		defer ticker.Stop()
@@ -196,7 +196,7 @@ func (um *userManager) UserFlush(interval time.Duration) {
 	}()
 }
 
-func (um *userManager) CacheFlush(interval time.Duration) {
+func (um *UserManager) CacheFlush(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	go func() {
 		defer ticker.Stop()
@@ -217,7 +217,7 @@ func (um *userManager) CacheFlush(interval time.Duration) {
 	}()
 }
 
-func (um *userManager) userCacheCleanup(interval time.Duration) {
+func (um *UserManager) userCacheCleanup(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	go func() {
 		defer ticker.Stop()
@@ -245,7 +245,7 @@ func (um *userManager) userCacheCleanup(interval time.Duration) {
 	}()
 }
 
-func (um *userManager) FlushAll() {
+func (um *UserManager) FlushAll() {
 	um.mu.Lock()
 	for id := range um.users {
 		delete(um.users, id)
@@ -253,7 +253,7 @@ func (um *userManager) FlushAll() {
 	um.mu.Unlock()
 }
 
-func (um *userManager) RemoveUser(usertoken string) bool {
+func (um *UserManager) RemoveUser(usertoken string) bool {
 	um.mu.RLock()
 	_, ok := um.users[usertoken]
 	um.mu.RUnlock()
@@ -266,7 +266,7 @@ func (um *userManager) RemoveUser(usertoken string) bool {
 	return true
 }
 
-func (um *userManager) RemoveUserCache(usertoken string, key string) bool {
+func (um *UserManager) RemoveUserCache(usertoken string, key string) bool {
 	um.mu.RLock()
 	user, ok := um.users[usertoken]
 	um.mu.RUnlock()
