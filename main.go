@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/theStackguy/usercache_go/src/cache"
+	"github.com/theStackguy/usercache_go/src"
 )
 
 type Person struct {
@@ -16,7 +16,7 @@ type Person struct {
 
 func main() {
 
-	um := cache.NewUserManager()
+	um := src.NewUserManager()
 	// um.UserFlush(10 * time.Second)
 	// nu := cache.NewUserManager()
 	userid, err := um.AddNewUser(1* time.Minute)
@@ -53,6 +53,9 @@ func main() {
 	 }
 	 fmt.Println(err)
 	
+
+	 value, err:= util.GenerateRefreshToken(32)
+	 fmt.Println(value)
 	// err = um.AddOrUpdateUserCache(userid, "newPerson",a,3*time.Second)
 	// if err != nil {
 	// 	fmt.Println(err)

@@ -1,0 +1,31 @@
+package src
+
+import "errors"
+
+var (
+	errGuid                   = errors.New("issue occurred during guid creation")
+	errUser                   = errors.New("user not found")
+	errSession                = errors.New("session not found")
+	errPayLoad                = errors.New("id/Key/Value seems missing")
+	errCacheUpdate            = errors.New("issue occured while adding/updating the data")
+	errUserExpired            = errors.New("requested User is expired")
+	errCacheExpired           = errors.New("requested cache is expired")
+	errExpired                = errors.New("expired data couldnt be updated")
+	errReadUser               = errors.New("requested User is not available")
+	errReadUserToken          = errors.New("requested User token is not available")
+	errReadCacheKey           = errors.New("requested cache key couldnt be found")
+	errTokenGen               = errors.New("error occured in token generation")
+	errAuth                   = errors.New("authentication required")
+	errAddorUpdateCache       = errors.New("expiry set to nil or issue in generating token")
+	errMemoryLimit            = errors.New("negative or nil memory values provided")
+	errGlobalMemoryStatusEx   = errors.New("error occured in GlobalMemoryStatusEx call")
+	errLogicForOsNotDeveloped = errors.New("logic not added for current OS")
+	errProcMem                = errors.New("failed to open /proc/meminfo")
+	errParseProcMem           = errors.New("failed to parse MemAvailable value")
+	errReadProcMem            = errors.New("error reading /proc/meminfo")
+	errKeyNotFoundInProcMem   = errors.New("memAvailable not found in /proc/meminfo")
+	errNewLibray              = errors.New("issue occured while accessing the dynamic library ")
+	errKernelfail             = errors.New("kernel failed during the process")
+	errMemExceeded              = errors.New("requested memory not available  in the disk")
+	errZeroExpiry = errors.New("no expiration time set for session")
+)

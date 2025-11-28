@@ -1,5 +1,5 @@
 
-package util
+package src
 
 import (
 	"crypto/rand"
@@ -59,7 +59,7 @@ func New() (*Guid,error) {
 	return g,nil
 }
 
-func NewString() (string,error) {
+func newString() (string,error) {
 	value,err := New();
 	if err != nil {
 		return  value.String(),nil;
@@ -67,8 +67,19 @@ func NewString() (string,error) {
 	return value.String(),err;
 }
 
+func newTokenStrings(number int) ([]string,error) {
+    var tokenArray[]string
+	for i := 0; i< number; i++ {
+		value,err := New()
+		if err == nil {
+             tokenArray = append(tokenArray, value.String())
+		}
+	}
+	return tokenArray,nil
+}
 
-func IsGuid(s string) bool {
+
+func isGuid(s string) bool {
 	if len(s) != 36 {
 		return false
 	}
