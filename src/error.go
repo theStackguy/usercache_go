@@ -5,6 +5,8 @@ import "errors"
 var (
 	errGuid                   = errors.New("issue occurred during guid creation")
 	errUser                   = errors.New("user not found")
+	errSessionTokenGen        = errors.New("error occured while creating session token")
+	errRefershTokenGen        = errors.New("error occured while creating refresh token")
 	errSession                = errors.New("session not found")
 	errPayLoad                = errors.New("id/Key/Value seems missing")
 	errCacheUpdate            = errors.New("issue occured while adding/updating the data")
@@ -26,6 +28,6 @@ var (
 	errKeyNotFoundInProcMem   = errors.New("memAvailable not found in /proc/meminfo")
 	errNewLibray              = errors.New("issue occured while accessing the dynamic library ")
 	errKernelfail             = errors.New("kernel failed during the process")
-	errMemExceeded              = errors.New("requested memory not available  in the disk")
-	errZeroExpiry = errors.New("no expiration time set for session")
+	errMemExceeded            = errors.New("requested memory not available  in the disk")
+	errZeroExpiry             = errors.New("no expiration time set for session")
 )

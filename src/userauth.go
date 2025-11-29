@@ -5,28 +5,35 @@ import (
 )
 
 const (
-	DefaultSessionTokenExpiry = defaultSessionTokenTime * time.Minute
-	DefaultRefreshTokenExpiry = defaultRefreshTokenTime * time.Hour
+	DefaultSessionTokenExpiry = DefaultSessionTokenTime * time.Minute
+	DefaultRefreshTokenExpiry = DefaultRefreshTokenTime * time.Hour
 )
 
-func (session *Session)generateSessionRefreshToken(sessionTokenExpiryTime time.Duration, refreshTokenExpiryTime time.Duration) (string, string, error) {
-	sessionToken, err := generateToken(session_token_length)
-	if err == nil {
-		refreshToken, err := generateToken(refresh_token_length)
-		if err == nil {
-			if sessionTokenExpiryTime <= 0 {
-				session.SessionExpiry = time.Now().Add(DefaultSessionTokenExpiry)
-			} else {
-				session
-			}
-			if refreshTokenExpiryTime <= 0 {
-				session.RefreshExpiry = time.Now().Add(DefaultRefreshTokenExpiry)
-			}
-			return sessionToken, refreshToken, nil
-		}
+func (session *Session) generateSessionRefreshToken(sessionTokenExpiryTime time.Duration, refreshTokenExpiryTime time.Duration) {
+	sessionToken, sessiontokenerr := generateToken(session_token_length)
+	if sessiontokenerr != nil {
+		session.Err = errSessionTokenGen
+		return
 	}
-	return "", "", err
+	session.SessionToken = sessionToken
 
+	refreshToken, refreshtokenerr := generateToken(refresh_token_length)
+	if refreshtokenerr != nil {
+		session.Err = errRefershTokenGen
+		return
+	}
+	session.RefreshToken = refreshToken
+
+	if sessionTokenExpiryTime <= 0 {
+		session.SessionExpiry = time.Now().Add(DefaultSessionTokenExpiry)
+	} else {
+		session.SessionExpiry = time.Now().Add(sessionTokenExpiryTime)
+	}
+	if refreshTokenExpiryTime <= 0 {
+		session.RefreshExpiry = time.Now().Add(DefaultRefreshTokenExpiry)
+	} else {
+		session.RefreshExpiry = time.Now().Add(refreshTokenExpiryTime)
+	}
 }
 
 func (s *Session) checkTokenExpired() {
@@ -57,7 +64,7 @@ func (s *Session) checkTokenExpired() {
 		s.SessionToken = ""
 		s.Err = errAuth
 		s.Mu.Unlock()
-		return 
+		return
 	}
-		
+
 }

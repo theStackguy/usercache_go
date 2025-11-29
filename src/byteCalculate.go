@@ -28,7 +28,7 @@ func mbSizeToUINT(value float64, c chan<- uint64, wg *sync.WaitGroup) {
 }
 
 func compareConfigOsMem(osmem uint64, configmem uint64) bool {
-	osmem -= osmem * memory_cutoff / 100
+	osmem -= osmem * Memory_cutoff / 100
 	if osmem > configmem {
 		return true
 	}

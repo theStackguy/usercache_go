@@ -12,6 +12,7 @@ func RetryAuthentication(session *Session) {
   session.Mu.Lock()
   defer session.Mu.Unlock()
   //change these with your credentials
-  session.SessionExpiry = time.Now().Add(dummyexpiry)
+  session.RefreshExpiry = time.Now().Add(dummyexpiry)
+  session.RefreshToken = dumpRefreshToken
 
 }

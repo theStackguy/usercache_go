@@ -70,8 +70,13 @@ func (um *UserManager) AddNewUser(sessionTokenExpiryTime time.Duration, refreshT
 		return nil, errGuid
 	}
 	var userId string = tokens[1]
+	
 	var sessionuser Session
-	sessionToken, refreshToken, err := generateSessionRefreshToken(sessionTokenExpiryTime, refreshTokenExpiryTime)
+	(&sessionuser).generateSessionRefreshToken(sessionTokenExpiryTime, refreshTokenExpiryTime)
+	if sessionuser.Err != nil {
+		return  nil,sessionuser.Err
+	}
+
 	if err != nil {
 		return nil, errTokenGen
 	}

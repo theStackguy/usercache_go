@@ -13,20 +13,16 @@ const (
 	mbtouintsize       = 131072
 )
 
-
-
 const (
 	session_token_length = 20
 	refresh_token_length = 32
-	 
-	
-	defaultSessionTokenTime = 5
-	defaultRefreshTokenTime = 1
-	parse_start = 10
-	parse_stop = 64
-	binary_sys_number = 1024
+	parse_start          = 10
+	parse_stop           = 64
+	binary_sys_number    = 1024
 )
 
 const (
-	memory_cutoff =  20
+	Memory_cutoff           = 20
+	DefaultSessionTokenTime = 5
+	DefaultRefreshTokenTime = 1
 )
