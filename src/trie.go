@@ -71,7 +71,7 @@ func (trie *RuneTrie) Delete(key string) bool {
 	}
 	node.value = nil
 	if node.isLeaf() {
-		for i := len(key) - ONE; i >= ZERO; i-- {
+		for i := len(key) - 1; i >= 0; i-- {
 			if path[i].node == nil {
 				continue
 			}
@@ -92,5 +92,5 @@ func (trie *RuneTrie) Delete(key string) bool {
 }
 
 func (trie *RuneTrie) isLeaf() bool {
-	return len(trie.children) == ZERO
+	return len(trie.children) == 0
 }

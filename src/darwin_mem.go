@@ -63,35 +63,35 @@ func GetFunc[T any](lib *Library, symbol string) T {
 func getHwMemsize() (uint64, error) {
 	total, err := unix.SysctlUint64("hw.memsize")
 	if err != nil {
-		return ZERO, err
+		return 0, err
 	}
 	return total, nil
 }
 
 func operatingSystemAvailableMemory(c chan<- error, wg *sync.WaitGroup) {
-	machLib, err := NewLibrary(System)
+	machLib, err := NewLibrary(system)
 	if wg != nil {
 		defer wg.Done()
 	}
 	defer close(c)
 	if err != nil {
-		_ = osavailableMemory.Swap(ZERO)
+		_ = osavailableMemory.Swap(0)
 		c <- errNewLibray
 		return
 	}
 	defer machLib.Close()
 
-	hostStatistics := GetFunc[HostStatisticsFunc](machLib, HostStatisticsSym)
-	machHostSelf := GetFunc[MachHostSelfFunc](machLib, MachHostSelfSym)
+	hostStatistics := GetFunc[HostStatisticsFunc](machLib, hostStatisticsSym)
+	machHostSelf := GetFunc[MachHostSelfFunc](machLib, machHostSelfSym)
 
-	count := uint32(HOST_VM_INFO_COUNT)
+	count := uint32(host_vm_info_count)
 	var vmstat vmStatisticsData
 
-	status := hostStatistics(machHostSelf(), HOST_VM_INFO,
+	status := hostStatistics(machHostSelf(), host_vm_info,
 		uintptr(unsafe.Pointer(&vmstat)), &count)
 
-	if status != KERN_SUCCESS {
-		_ = osavailableMemory.Swap(ZERO)
+	if status != kern_success {
+		_ = osavailableMemory.Swap(0)
 		c <- errKernelfail
 		return
 	}

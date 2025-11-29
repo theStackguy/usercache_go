@@ -22,7 +22,7 @@ type Session struct {
 	SessionToken  string
 	RefreshToken  string
 	IsActive      bool
-	Expiry        time.Time
+	SessionExpiry time.Time
 	RefreshExpiry time.Time
 	LastAccessed  time.Time
 	Cache         map[string]CacheItem
@@ -52,7 +52,7 @@ func NewUserManager() *UserManager {
 
 func (um *UserManager) AddNewUser(sessionTokenExpiryTime time.Duration, refreshTokenExpiryTime time.Duration, memorylimitInMB float64) (*User, error) {
 
-	if memorylimitInMB <= ZERO {
+	if memorylimitInMB <= 0 {
 		return nil, errMemoryLimit
 	}
 
@@ -60,30 +60,31 @@ func (um *UserManager) AddNewUser(sessionTokenExpiryTime time.Duration, refreshT
 	var osmemorychannel chan error
 	var memorychannel chan uint64
 
-	wg.Add(TWO_PROCESS)
+	wg.Add(2)
 
 	go operatingSystemAvailableMemory(osmemorychannel, &wg)
 	go mbSizeToUINT(memorylimitInMB, memorychannel, &wg)
 
-	tokens, err := newTokenStrings(TWO)
+	tokens, err := newTokenStrings(2)
 	if err != nil {
 		return nil, errGuid
 	}
-	var userId string = tokens[ONE]
+	var userId string = tokens[1]
+	var sessionuser Session
 	sessionToken, refreshToken, err := generateSessionRefreshToken(sessionTokenExpiryTime, refreshTokenExpiryTime)
 	if err != nil {
 		return nil, errTokenGen
 	}
-	sessionuser := &Session{
-		SessionId:     tokens[ZERO],
-		SessionToken:  sessionToken,
-		RefreshToken:  refreshToken,
-		Expiry:        time.Now().Add(sessionTokenExpiryTime),
-		RefreshExpiry: time.Now().Add(refreshTokenExpiryTime),
-		LastAccessed:  time.Now(),
-		IsActive:      true,
-		Cache:         make(map[string]CacheItem),
-	}
+	// sessionuser := &Session{
+	// 	SessionId:     tokens[ZERO],
+	// 	SessionToken:  sessionToken,
+	// 	RefreshToken:  refreshToken,
+	// 	Expiry:        time.Now().Add(sessionTokenExpiryTime),
+	// 	RefreshExpiry: time.Now().Add(refreshTokenExpiryTime),
+	// 	LastAccessed:  time.Now(),
+	// 	IsActive:      true,
+	// 	Cache:         make(map[string]CacheItem),
+	// }
 
 	wg.Wait()
 
@@ -102,7 +103,7 @@ func (um *UserManager) AddNewUser(sessionTokenExpiryTime time.Duration, refreshT
 	um.Mu.Lock()
 	um.Users[userId] = &User{
 		Id:       userId,
-		Sessions: map[string]*Session{tokens[ZERO]: sessionuser},
+		Sessions: map[string]*Session{tokens[0]: sessionuser},
 		memory:   map[string]*memorylimit{userId: memory},
 	}
 	um.Mu.Unlock()
@@ -128,7 +129,7 @@ func (um *UserManager) AddSessionToUser(userId string, sessionTokenExpiryTime ti
 		SessionId:     sessionId,
 		SessionToken:  sessionToken,
 		RefreshToken:  refreshToken,
-		Expiry:        time.Now().Add(sessionTokenExpiryTime),
+		SessionExpiry:        time.Now().Add(sessionTokenExpiryTime),
 		RefreshExpiry: time.Now().Add(refreshTokenExpiryTime),
 		LastAccessed:  time.Now(),
 		Cache:         make(map[string]CacheItem),
@@ -149,7 +150,7 @@ func (u *User) AddorUpdateUserCache(sessionid, sessionToken, key string, value a
 	}
 	(session).checkTokenExpired()
 	if session.Err == errAuth {
-		RetryAuthentication(*Session);
+		RetryAuthentication(session)
 	}
 	if sessionToken != session.SessionToken {
 

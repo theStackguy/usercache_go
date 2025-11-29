@@ -34,8 +34,8 @@ func operatingSystemAvailableMemory(c chan<- error, wg *sync.WaitGroup)  {
 	defer close(c)
 	memoryStatus.dwLength = uint32(unsafe.Sizeof(memoryStatus))
 	ret, _, _ := globalMemorystatusEx.Call(uintptr(unsafe.Pointer(&memoryStatus)))
-	if ret == ZERO {
-		_ = osavailableMemory.Swap(ZERO)
+	if ret == 0 {
+		_ = osavailableMemory.Swap(0)
 		c <- errGlobalMemoryStatusEx
 		return 
 	}
