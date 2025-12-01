@@ -59,7 +59,7 @@ func New() (*Guid,error) {
 	return g,nil
 }
 
-func newString() (string,error) {
+func newTokenString() (string,error) {
 	value,err := New();
 	if err != nil {
 		return  value.String(),nil;
