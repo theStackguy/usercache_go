@@ -11,20 +11,21 @@ type UserManager struct {
 }
 
 type User struct {
-	Id               string
-	Mu               sync.RWMutex
-	Sessions         map[string]*Session
-	CurrentSessionId string
-	SharedCache      *Cache[string, any]
-	memory           *memorylimit
-	IsActive         bool
+	Id                 string
+	Mu                 sync.RWMutex
+	Sessions           map[string]*Session
+	CurrentSessionId   string
+	SharedCache        *Cache[string, any]
+	memory             *memorylimit
+	// CurrentSessionPool uint8
+	isActive           bool
 }
 
 type Session struct {
 	SessionId     string
 	SessionToken  string
 	RefreshToken  string
-	IsActive      bool
+	isActive      bool
 	SessionExpiry time.Time
 	RefreshExpiry time.Time
 	LastAccessed  time.Time
@@ -50,11 +51,18 @@ func newCache[K comparable, V any]() *Cache[K, V] {
 	}
 }
 
-type userPayload struct {
-	Id    string
-	Key   string
-	Value any
+// type userPayload struct {
+// 	id    string
+// 	key   string
+// 	value any
+// }
+
+type userDTO struct {
+	userid string
+	isNew bool
 }
+
+
 
 func NewUserManager() *UserManager {
 	um := &UserManager{
@@ -97,7 +105,7 @@ func (um *UserManager) AddNewUser(sessionTokenExpiryTime time.Duration, refreshT
 	}
 
 	sessionuser.LastAccessed = time.Now()
-	sessionuser.IsActive = true
+	sessionuser.isActive = true
 	sessionuser.Cache = newCache[string, any]()
 
 	wg.Wait()
@@ -116,12 +124,12 @@ func (um *UserManager) AddNewUser(sessionTokenExpiryTime time.Duration, refreshT
 
 	um.Mu.Lock()
 	um.Users[*userId] = &User{
-		Id:               *userId,
-		Sessions:         map[string]*Session{tokens[0]: sessionuser},
-		CurrentSessionId: tokens[0],
-		SharedCache:      newCache[string, any](),
-		memory:           usermemory,
-		IsActive:         true,
+		Id:                 *userId,
+		Sessions:           map[string]*Session{tokens[0]: sessionuser},
+		CurrentSessionId:   tokens[0],
+		SharedCache:        newCache[string, any](),
+		memory:             usermemory,
+		isActive:           true,
 	}
 	um.Mu.Unlock()
 	return um.Users[*userId], nil
@@ -152,7 +160,7 @@ func (um *UserManager) AddNewSessionToUser(userId string, sessionTokenExpiryTime
 	return newsession, nil
 }
 
-func (u *User) AddorUpdateUserCache(sessionid, sessionToken, key string, value any) (*Session, error) {
+func (u *User) AddorUpdateSessionCache(sessionid, sessionToken, key string, value any) (*Session, error) {
 
 	u.Mu.RLock()
 	session, exists := u.Sessions[sessionid]
@@ -178,17 +186,17 @@ func (u *User) AddorUpdateUserCache(sessionid, sessionToken, key string, value a
 
 }
 
-func AddorUpdateSessionCache() {
+func AddorUpdateUserCache() {
 
 }
 
-func (c userPayload) hasAllNeededData(flag bool) bool {
-	switch {
-	case c.Id == "":
-	case c.Key == "":
-	case flag && c.Value == nil:
-	default:
-		return true
-	}
-	return false
-}
+// func (c userPayload) hasAllNeededData(flag bool) bool {
+// 	switch {
+// 	case c.Id == "":
+// 	case c.Key == "":
+// 	case flag && c.Value == nil:
+// 	default:
+// 		return true
+// 	}
+// 	return false
+// }

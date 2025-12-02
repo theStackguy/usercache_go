@@ -4,7 +4,7 @@ import "errors"
 
 var (
 	errGuid                   = errors.New("issue occurred during guid creation")
-	errUser                   = errors.New("user not found")
+	errUser                   = errors.New("user not found or user is inactive")
 	errSessionTokenGen        = errors.New("error occured while creating session token")
 	errRefershTokenGen        = errors.New("error occured while creating refresh token")
 	errSession                = errors.New("session not found")

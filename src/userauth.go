@@ -68,3 +68,17 @@ func (s *Session) checkTokenExpired() {
 	}
 
 }
+
+
+func ( u *User)verifySessionCredentials(sessionid string, sessiontoken string) error {
+	
+     u.Mu.RLock()
+	 session,exist := u.Sessions[sessionid]
+	 if exist {
+         if  (u.CurrentSessionId == sessionid) {
+           
+		 }
+	 } 
+		return  errSession
+	 
+}
