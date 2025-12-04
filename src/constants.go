@@ -25,4 +25,5 @@ const (
 	Memory_cutoff           = 20
 	DefaultSessionTokenTime = 5
 	DefaultRefreshTokenTime = 1
+	Allowed_Sessions  = 3
 )

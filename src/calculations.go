@@ -8,31 +8,19 @@ import (
 )
 
 type memorylimit struct {
-	configured   uint64
+	configured     uint64
 	remainingSpace uint64
 }
 
+type activeSessionsRegistry struct {
+	mu          sync.RWMutex
+	maxSessions uint8
+	users       map[string]*activeUserSession
+}
 
-type sessionPool struct {
-	userSessions map[string]
-} 
 type activeUserSession struct {
-	userid string
-	currentSessionPool uint8
-	
+	SessionIDs []string
 }
-
-
-type ActiveSessionsRegistry struct {
-    mu          sync.RWMutex
-    maxSessions uint8
-    users       map[string]*ActiveUserSession
-}
-
-type ActiveUserSession struct {
-    SessionIDs []string
-}
-
 
 var osavailableMemory atomic.Uint64
 
@@ -57,29 +45,56 @@ func compareConfigOsMem(osmem uint64, configmem uint64) bool {
 	return false
 }
 
-func sessionPoolChecker(userdto *userDTO, c chan <- error, wg *sync.WaitGroup) {
+func sessionPoolChecker(userdto *userDTO, c chan<- error, wg *sync.WaitGroup) {
 	if wg != nil {
 		defer wg.Done()
 	}
 	defer close(c)
 
-	switch {
-	case userdto.isNew == false:
-        var u *UserManager
-		u.Mu.RLock()
-		user,exist := u.Users[userdto.userid]
-		u.Mu.RUnlock()
-		if exist && user.isActive == true {
-            var pool *activeUserSessions
-			pool.mu.RLock()
-			userinpool,exist := pool.userid[userdto.userid]
-			pool.mu.RUnlock()
+	var u *UserManager
+	u.Mu.RLock()
+	user, exist := u.Users[userdto.userid]
+	u.Mu.RUnlock()
+
+	if exist && user.isActive == true {
+		var pool *activeSessionsRegistry
+		pool.mu.RLock()
+		userinpool, userinpoolexist := pool.users[userdto.userid]
+		pool.mu.RUnlock()
+
+		if !userdto.isNew {
+			if userinpoolexist {
+				if len(userinpool.SessionIDs) < Allowed_Sessions {
+					pool.mu.Lock()
+					userinpool.SessionIDs = append(userinpool.SessionIDs, user.CurrentSessionId)
+					pool.mu.Unlock()
+					c <- nil
+					return
+				}
+				c <- errSessionLimit
+				return
+			}
+			newRegistryAssigner(userdto, user, pool)
+			c <- nil
+			return
+		} else if userdto.isNew {
+			newRegistryAssigner(userdto, user, pool)
+			c <- nil
+			return
 		}
-		c <- errUser
+		c <- errUserDto
 		return
-
-	case userdto.isNew == true:
-
 	}
+	c <- errUser
+	return
+
 }
 
+func newRegistryAssigner(userdto *userDTO, user *User, pool *activeSessionsRegistry) {
+	newActiveUserSession := &activeUserSession{
+		SessionIDs: []string{user.CurrentSessionId},
+	}
+	pool.mu.Lock()
+	pool.users[userdto.userid] = newActiveUserSession
+	pool.mu.Unlock()
+}
