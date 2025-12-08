@@ -22,6 +22,11 @@ type activeUserSession struct {
 	SessionIDs []string
 }
 
+type registrySessionDTO struct {
+	userid string
+	sessionTokenToAdd string
+}
+
 var osavailableMemory atomic.Uint64
 
 func CalculateInputBytes(value any, ch chan<- bool) {
@@ -45,28 +50,29 @@ func compareConfigOsMem(osmem uint64, configmem uint64) bool {
 	return false
 }
 
-func sessionPoolChecker(userdto *userDTO, c chan<- error, wg *sync.WaitGroup) {
+func sessionPoolConfig(userdto *userDTO, c chan<- error, wg *sync.WaitGroup) {
 	if wg != nil {
 		defer wg.Done()
 	}
 	defer close(c)
+	var userCopy User
 
-	var u *UserManager
-	u.Mu.RLock()
-	user, exist := u.Users[userdto.userid]
-	u.Mu.RUnlock()
+	// var u *UserManager
+	// u.Mu.RLock()
+	// user, exist := u.Users[userdto.userid]
+	// u.Mu.RUnlock()
 
-	if exist && user.isActive == true {
+	if userdto.user.isActive == true {
 		var pool *activeSessionsRegistry
 		pool.mu.RLock()
-		userinpool, userinpoolexist := pool.users[userdto.userid]
+		userinpool, userinpoolexist := pool.users[userdto.user.Id]
 		pool.mu.RUnlock()
 
 		if !userdto.isNew {
 			if userinpoolexist {
 				if len(userinpool.SessionIDs) < Allowed_Sessions {
 					pool.mu.Lock()
-					userinpool.SessionIDs = append(userinpool.SessionIDs, user.CurrentSessionId)
+					userinpool.SessionIDs = append(userinpool.SessionIDs, userdto.sessionTokenToAdd)
 					pool.mu.Unlock()
 					c <- nil
 					return
@@ -74,11 +80,14 @@ func sessionPoolChecker(userdto *userDTO, c chan<- error, wg *sync.WaitGroup) {
 				c <- errSessionLimit
 				return
 			}
-			newRegistryAssigner(userdto, user, pool)
+			registrydto := &registrySessionDTO{
+				userid: ,
+			}
+			newRegistryAssigner(userdto, pool)
 			c <- nil
 			return
-		} else if userdto.isNew {
-			newRegistryAssigner(userdto, user, pool)
+		} else if userdto.isNew && !userinpoolexist {
+			newRegistryAssigner(userdto,  pool)
 			c <- nil
 			return
 		}
@@ -90,9 +99,9 @@ func sessionPoolChecker(userdto *userDTO, c chan<- error, wg *sync.WaitGroup) {
 
 }
 
-func newRegistryAssigner(userdto *userDTO, user *User, pool *activeSessionsRegistry) {
+func newRegistryAssigner(userdto *registrySessionDTO, pool *activeSessionsRegistry) {
 	newActiveUserSession := &activeUserSession{
-		SessionIDs: []string{user.CurrentSessionId},
+		SessionIDs: []string{userdto.sessionTokenToAdd},
 	}
 	pool.mu.Lock()
 	pool.users[userdto.userid] = newActiveUserSession
