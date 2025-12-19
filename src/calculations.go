@@ -23,15 +23,19 @@ type activeUserSession struct {
 }
 
 type registrySessionDTO struct {
-	userid string
+	userid            string
 	sessionTokenToAdd string
 }
 
 var osavailableMemory atomic.Uint64
 
-func CalculateInputBytes(value any, ch chan<- bool) {
+func calculateInputBytes(value any, c chan<- uint64, wg *sync.WaitGroup) {
+	if wg != nil {
+		defer wg.Done()
+	}
+	defer close(c)
 	bytevalue := size.Of(value)
-
+	c <- uint64(bytevalue)
 }
 
 func mbSizeToUINT(value float64, c chan<- uint64, wg *sync.WaitGroup) {
@@ -55,12 +59,6 @@ func sessionPoolConfig(userdto *userDTO, c chan<- error, wg *sync.WaitGroup) {
 		defer wg.Done()
 	}
 	defer close(c)
-	var userCopy User
-
-	// var u *UserManager
-	// u.Mu.RLock()
-	// user, exist := u.Users[userdto.userid]
-	// u.Mu.RUnlock()
 
 	if userdto.user.isActive == true {
 		var pool *activeSessionsRegistry
@@ -80,14 +78,19 @@ func sessionPoolConfig(userdto *userDTO, c chan<- error, wg *sync.WaitGroup) {
 				c <- errSessionLimit
 				return
 			}
-			registrydto := &registrySessionDTO{
-				userid: ,
+			registrydto := registrySessionDTO{
+				userid:            userdto.user.Id,
+				sessionTokenToAdd: userdto.sessionTokenToAdd,
 			}
-			newRegistryAssigner(userdto, pool)
+			newRegistryAssigner(registrydto, pool)
 			c <- nil
 			return
 		} else if userdto.isNew && !userinpoolexist {
-			newRegistryAssigner(userdto,  pool)
+			registrydto := registrySessionDTO{
+				userid:            userdto.user.Id,
+				sessionTokenToAdd: userdto.sessionTokenToAdd,
+			}
+			newRegistryAssigner(registrydto, pool)
 			c <- nil
 			return
 		}
@@ -99,7 +102,7 @@ func sessionPoolConfig(userdto *userDTO, c chan<- error, wg *sync.WaitGroup) {
 
 }
 
-func newRegistryAssigner(userdto *registrySessionDTO, pool *activeSessionsRegistry) {
+func newRegistryAssigner(userdto registrySessionDTO, pool *activeSessionsRegistry) {
 	newActiveUserSession := &activeUserSession{
 		SessionIDs: []string{userdto.sessionTokenToAdd},
 	}

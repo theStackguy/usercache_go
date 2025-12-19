@@ -19,6 +19,7 @@ const (
 	parse_start          = 10
 	parse_stop           = 64
 	binary_sys_number    = 1024
+	max_tokengen_try = 3
 )
 
 const (
@@ -26,4 +27,5 @@ const (
 	DefaultSessionTokenTime = 5
 	DefaultRefreshTokenTime = 1
 	Allowed_Sessions  = 3
+
 )

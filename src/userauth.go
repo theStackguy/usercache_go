@@ -9,76 +9,85 @@ const (
 	DefaultRefreshTokenExpiry = DefaultRefreshTokenTime * time.Hour
 )
 
-func (session *Session) generateSessionRefreshToken(sessionTokenExpiryTime time.Duration, refreshTokenExpiryTime time.Duration) {
+func (session *Session) generateSessionRefreshToken(sessionTokenExpiryTime time.Duration, refreshTokenExpiryTime time.Duration) error {
 	sessionToken, sessiontokenerr := generateToken(session_token_length)
 	if sessiontokenerr != nil {
-		session.Err = errSessionTokenGen
-		return
+		return errSessionTokenGen
 	}
-	session.SessionToken = sessionToken
+	session.mu.Lock()
+	session.sessionToken = sessionToken
+	session.mu.Unlock()
 
 	refreshToken, refreshtokenerr := generateToken(refresh_token_length)
 	if refreshtokenerr != nil {
-		session.Err = errRefershTokenGen
-		return
+		return errRefershTokenGen
 	}
-	session.RefreshToken = refreshToken
+	session.mu.Lock()
+	session.refreshToken = refreshToken
+	session.mu.Unlock()
 
 	if sessionTokenExpiryTime <= 0 {
-		session.SessionExpiry = time.Now().Add(DefaultSessionTokenExpiry)
+		session.mu.Lock()
+		session.sessionExpiry = time.Now().Add(DefaultSessionTokenExpiry)
+		session.mu.Unlock()
 	} else {
-		session.SessionExpiry = time.Now().Add(sessionTokenExpiryTime)
+		session.mu.Lock()
+		session.sessionExpiry = time.Now().Add(sessionTokenExpiryTime)
+		session.mu.Unlock()
 	}
 	if refreshTokenExpiryTime <= 0 {
-		session.RefreshExpiry = time.Now().Add(DefaultRefreshTokenExpiry)
+		session.mu.Lock()
+		session.refreshExpiry = time.Now().Add(DefaultRefreshTokenExpiry)
+		session.mu.Unlock()
 	} else {
-		session.RefreshExpiry = time.Now().Add(refreshTokenExpiryTime)
+		session.mu.Lock()
+		session.refreshExpiry = time.Now().Add(refreshTokenExpiryTime)
+		session.mu.Unlock()
 	}
+	return nil
 }
 
-func (s *Session) checkTokenExpired() {
-	if s.SessionExpiry.IsZero() {
-		s.Mu.Lock()
-		s.SessionToken = ""
-		s.Err = errZeroExpiry
-		s.Mu.Unlock()
-		return
-	}
-	if time.Now().After(s.SessionExpiry) {
-		if !time.Now().After(s.RefreshExpiry) {
-			sessionToken, err := generateToken(session_token_length)
-			if err != nil {
-				s.Mu.Lock()
-				s.SessionToken = ""
-				s.Err = errTokenGen
-				s.Mu.Unlock()
-				return
+func (s *Session) checkTokenExpired() error {
+
+	if time.Now().After(s.sessionExpiry) {
+		if !time.Now().After(s.refreshExpiry) {
+			var sessionToken string
+			var err error
+			for try := 0; try <= max_tokengen_try; try++ {
+				sessionToken, err = generateToken(session_token_length)
+				if err == nil {
+					break
+				}
 			}
-			s.Mu.Lock()
-			s.SessionToken = sessionToken
-			s.Err = nil
-			s.Mu.Unlock()
-			return
+			if err != nil {
+				s.mu.Lock()
+				s.sessionToken = ""
+				s.mu.Unlock()
+				return errTokenGen
+
+			}
+			s.mu.Lock()
+			s.sessionToken = sessionToken
+			s.mu.Unlock()
+			return nil
 		}
-		s.Mu.Lock()
-		s.SessionToken = ""
-		s.Err = errAuth
-		s.Mu.Unlock()
-		return
+		s.mu.Lock()
+		s.sessionToken = ""
+		s.mu.Unlock()
+		return errAuth
 	}
 
 }
 
+func (u *User) verifySessionCredentials(sessionid string, sessiontoken string) error {
 
-func ( u *User)verifySessionCredentials(sessionid string, sessiontoken string) error {
-	
-     u.Mu.RLock()
-	 session,exist := u.Sessions[sessionid]
-	 if exist {
-         if  (u.CurrentSessionId == sessionid) {
-           
-		 }
-	 } 
-		return  errSession
-	 
+	u.Mu.RLock()
+	session, exist := u.Sessions[sessionid]
+	if exist {
+		if u.CurrentSessionId == sessionid {
+
+		}
+	}
+	return errSession
+
 }
