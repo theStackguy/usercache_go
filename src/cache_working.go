@@ -13,7 +13,7 @@ type UserManager struct {
 type User struct {
 	Id               string
 	Mu               sync.RWMutex
-	Sessions         map[string]*Session
+	Sessions         map[string]*session
 	CurrentSessionId string
 	SharedCache      *Cache[string, any]
 	memory           *memorylimit
@@ -31,7 +31,7 @@ type userSnapShot struct {
 	remainingSpace uint64
 }
 
-type Session struct {
+type session struct {
 	sessionId     string
 	sessionToken  string
 	refreshToken  string
@@ -100,13 +100,13 @@ func (um *UserManager) AddNewUser(sessionTokenExpiryTime time.Duration, refreshT
 		return nil, errGuid
 	}
 
-	var sessionuser *Session
+	var sessionuser *session
 	var userId *string = &tokens[1]
-	sessionuser.SessionId = tokens[0]
+	sessionuser.sessionId = tokens[0]
 
-	(sessionuser).generateSessionRefreshToken(sessionTokenExpiryTime, refreshTokenExpiryTime)
-	if sessionuser.Err != nil {
-		return nil, sessionuser.Err
+	gensessrefErr := (sessionuser).generateSessionRefreshToken(sessionTokenExpiryTime, refreshTokenExpiryTime)
+	if gensessrefErr != nil {
+		return nil, gensessrefErr
 	}
 	if err != nil {
 		return nil, errTokenGen
@@ -132,7 +132,7 @@ func (um *UserManager) AddNewUser(sessionTokenExpiryTime time.Duration, refreshT
 
 	newUser := &User{
 		Id:               *userId,
-		Sessions:         map[string]*Session{tokens[0]: sessionuser},
+		Sessions:         map[string]*session{tokens[0]: sessionuser},
 		CurrentSessionId: tokens[0],
 		SharedCache:      newCache[string, any](),
 		memory:           usermemory,
@@ -160,6 +160,10 @@ func (um *UserManager) AddNewSessionToUser(userId string, sessionTokenExpiryTime
 	var sessionConfigChannel chan error
 	var sizeCalculatorChannel chan uint64
 
+    wg.Add(2)
+
+	go calculateInputBytes(userCopy, sizeCalculatorChannel, &wg)
+
 	sessionId, err := newTokenString()
 	if err != nil {
 		return nil, errGuid
@@ -171,11 +175,9 @@ func (um *UserManager) AddNewSessionToUser(userId string, sessionTokenExpiryTime
 		sessionTokenToAdd: sessionId,
 	}
 
-	wg.Add(2)
 	go sessionPoolConfig(userdto, sessionConfigChannel, &wg)
-	go calculateInputBytes(userCopy, sizeCalculatorChannel, &wg)
-
-	var newsession *Session
+	
+	var newsession *session
 	newsession.sessionId = sessionId
 	(newsession).generateSessionRefreshToken(sessionTokenExpiryTime, refreshTokenExpiryTime)
 	newsession.lastAccessed = time.Now()
@@ -194,8 +196,19 @@ func (um *UserManager) AddNewSessionToUser(userId string, sessionTokenExpiryTime
 
 }
 
-func (u *User) AddorUpdateSessionCache(sessionid, sessionToken, key string, value any) (*Session, error) {
+func (u *User) AddSessionCache() (*session, error) {
+ 
+     usercopy := u.newUserSnapshot()
 
+}
+
+func (u *User) UpdateSessionCache() (*session,error) {
+
+}
+
+func (u *User) AddorUpdateSessionCache(sessionid, sessionToken, key string, value any) (*session, error) {
+    
+	usercopy := u.newUserSnapshot()
 	u.Mu.RLock()
 	session, exists := u.Sessions[sessionid]
 	u.Mu.RUnlock()
@@ -209,13 +222,6 @@ func (u *User) AddorUpdateSessionCache(sessionid, sessionToken, key string, valu
 	if sessionToken != session.sessionToken {
 		return nil, errSessionToken
 	}
-
-
-
-
-
-
-
 
 	updatedsession := s.checkTokenExpired(sessionToken)
 	switch {

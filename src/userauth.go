@@ -9,7 +9,7 @@ const (
 	DefaultRefreshTokenExpiry = DefaultRefreshTokenTime * time.Hour
 )
 
-func (session *Session) generateSessionRefreshToken(sessionTokenExpiryTime time.Duration, refreshTokenExpiryTime time.Duration) error {
+func (session *session) generateSessionRefreshToken(sessionTokenExpiryTime time.Duration, refreshTokenExpiryTime time.Duration) error {
 	sessionToken, sessiontokenerr := generateToken(session_token_length)
 	if sessiontokenerr != nil {
 		return errSessionTokenGen
@@ -47,7 +47,7 @@ func (session *Session) generateSessionRefreshToken(sessionTokenExpiryTime time.
 	return nil
 }
 
-func (s *Session) checkTokenExpired() error {
+func (s *session) checkTokenExpired() error {
 
 	if time.Now().After(s.sessionExpiry) {
 		if !time.Now().After(s.refreshExpiry) {
@@ -76,6 +76,7 @@ func (s *Session) checkTokenExpired() error {
 		s.mu.Unlock()
 		return errAuth
 	}
+	return nil
 
 }
 
@@ -84,9 +85,14 @@ func (u *User) verifySessionCredentials(sessionid string, sessiontoken string) e
 	u.Mu.RLock()
 	session, exist := u.Sessions[sessionid]
 	if exist {
-		if u.CurrentSessionId == sessionid {
+		// if u.CurrentSessionId == sessionid {
 
-		}
+		// }
+		err := session.checkTokenExpired()
+		if err != nil {
+             
+		} 
+		return  err
 	}
 	return errSession
 
