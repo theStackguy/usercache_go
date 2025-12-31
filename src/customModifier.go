@@ -8,11 +8,11 @@ var dumpRefreshToken = "CAjVTFhs9DszFJ-Iym7gGVHd92MDZSiQCPyHcfUc8qI="
 var dummyexpiry time.Duration = 6 * time.Hour 
 
 
-func RetryAuthentication(session *Session) {
-  session.Mu.Lock()
-  defer session.Mu.Unlock()
+func RetryAuthentication(session *session) {
+  session.mu.Lock()
+  defer session.mu.Unlock()
   //change these with your credentials
-  session.RefreshExpiry = time.Now().Add(dummyexpiry)
-  session.RefreshToken = dumpRefreshToken
+  session.refreshExpiry = time.Now().Add(dummyexpiry)
+  session.refreshToken = dumpRefreshToken
 
 }

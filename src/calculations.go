@@ -63,7 +63,7 @@ func sessionPoolConfig(userdto *userDTO, c chan<- error, wg *sync.WaitGroup) {
 	if userdto.user.isActive == true {
 		var pool *activeSessionsRegistry
 		pool.mu.RLock()
-		userinpool, userinpoolexist := pool.users[userdto.user.Id]
+		userinpool, userinpoolexist := pool.users[userdto.user.id]
 		pool.mu.RUnlock()
 
 		if !userdto.isNew {
@@ -79,7 +79,7 @@ func sessionPoolConfig(userdto *userDTO, c chan<- error, wg *sync.WaitGroup) {
 				return
 			}
 			registrydto := registrySessionDTO{
-				userid:            userdto.user.Id,
+				userid:            userdto.user.id,
 				sessionTokenToAdd: userdto.sessionTokenToAdd,
 			}
 			newRegistryAssigner(registrydto, pool)
@@ -87,7 +87,7 @@ func sessionPoolConfig(userdto *userDTO, c chan<- error, wg *sync.WaitGroup) {
 			return
 		} else if userdto.isNew && !userinpoolexist {
 			registrydto := registrySessionDTO{
-				userid:            userdto.user.Id,
+				userid:            userdto.user.id,
 				sessionTokenToAdd: userdto.sessionTokenToAdd,
 			}
 			newRegistryAssigner(registrydto, pool)

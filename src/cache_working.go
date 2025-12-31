@@ -22,9 +22,9 @@ type User struct {
 }
 
 type userSnapShot struct {
-	Id string
+	id string
 
-	CurrentSessionId string
+	currentSessionId string
 
 	isActive bool
 
@@ -86,14 +86,15 @@ func (um *UserManager) AddNewUser(sessionTokenExpiryTime time.Duration, refreshT
 		return nil, errMemoryLimit
 	}
 
-	var wg sync.WaitGroup
+	var userSnapShot userSnapShot
+	var wg *sync.WaitGroup
 	var osmemorychannel chan error
 	var memorychannel chan uint64
 
 	wg.Add(2)
 
-	go operatingSystemAvailableMemory(osmemorychannel, &wg)
-	go mbSizeToUINT(memorylimitInMB, memorychannel, &wg)
+	go operatingSystemAvailableMemory(osmemorychannel, wg)
+	go mbSizeToUINT(memorylimitInMB, memorychannel, wg)
 
 	tokens, err := newTokenStrings(2)
 	if err != nil {
@@ -101,7 +102,12 @@ func (um *UserManager) AddNewUser(sessionTokenExpiryTime time.Duration, refreshT
 	}
 
 	var sessionuser *session
-	var userId *string = &tokens[1]
+	var userId string = tokens[1]
+
+	userSnapShot.id = userId
+	userSnapShot.currentSessionId = tokens[0]
+	userSnapShot.isActive = true
+
 	sessionuser.sessionId = tokens[0]
 
 	gensessrefErr := (sessionuser).generateSessionRefreshToken(sessionTokenExpiryTime, refreshTokenExpiryTime)
@@ -118,20 +124,35 @@ func (um *UserManager) AddNewUser(sessionTokenExpiryTime time.Duration, refreshT
 
 	wg.Wait()
 
+	var remainingOsSpace = osavailableMemory.Load()
+	userSnapShot.remainingSpace = remainingOsSpace
+
 	if osmemerror := <-osmemorychannel; osmemerror != nil {
 		return nil, osmemerror
 	}
-	if !compareConfigOsMem(osavailableMemory.Load(), <-memorychannel) {
+	if !compareConfigOsMem(remainingOsSpace, <-memorychannel) {
 		return nil, errMemExceeded
 	}
 
+
+    var sessionConfigChannel chan error
+	var userdto = &userDTO{
+		user:              userSnapShot,
+		isNew:             true,
+		sessionTokenToAdd: tokens[0],
+	}
+
+	wg.Add(1)
+    go sessionPoolConfig(userdto, sessionConfigChannel, wg)
+
+
 	usermemory := &memorylimit{
 		configured:     <-memorychannel,
-		remainingSpace: osavailableMemory.Load(),
+		remainingSpace: remainingOsSpace,
 	}
 
 	newUser := &User{
-		Id:               *userId,
+		Id:               userId,
 		Sessions:         map[string]*session{tokens[0]: sessionuser},
 		CurrentSessionId: tokens[0],
 		SharedCache:      newCache[string, any](),
@@ -139,13 +160,19 @@ func (um *UserManager) AddNewUser(sessionTokenExpiryTime time.Duration, refreshT
 		isActive:         true,
 	}
 
+	wg.Wait()
+
+	if sessionerr := <-sessionConfigChannel; sessionerr != nil {
+		return  nil,sessionerr
+	}
+
 	um.Mu.Lock()
-	um.Users[*userId] = newUser
+	um.Users[userId] = newUser
 	um.Mu.Unlock()
 	return newUser, nil
 }
 
-func (um *UserManager) AddNewSessionToUser(userId string, sessionTokenExpiryTime time.Duration, refreshTokenExpiryTime time.Duration) (*Session, error) {
+func (um *UserManager) AddNewSessionToUser(userId string, sessionTokenExpiryTime time.Duration, refreshTokenExpiryTime time.Duration) (*session, error) {
 
 	um.Mu.RLock()
 	user, exists := um.Users[userId]
@@ -156,13 +183,13 @@ func (um *UserManager) AddNewSessionToUser(userId string, sessionTokenExpiryTime
 
 	userCopy := user.newUserSnapshot()
 
-	var wg sync.WaitGroup
+	var wg *sync.WaitGroup
 	var sessionConfigChannel chan error
 	var sizeCalculatorChannel chan uint64
 
-    wg.Add(2)
+	wg.Add(2)
 
-	go calculateInputBytes(userCopy, sizeCalculatorChannel, &wg)
+	go calculateInputBytes(userCopy, sizeCalculatorChannel, wg)
 
 	sessionId, err := newTokenString()
 	if err != nil {
@@ -175,8 +202,8 @@ func (um *UserManager) AddNewSessionToUser(userId string, sessionTokenExpiryTime
 		sessionTokenToAdd: sessionId,
 	}
 
-	go sessionPoolConfig(userdto, sessionConfigChannel, &wg)
-	
+	go sessionPoolConfig(userdto, sessionConfigChannel, wg)
+
 	var newsession *session
 	newsession.sessionId = sessionId
 	(newsession).generateSessionRefreshToken(sessionTokenExpiryTime, refreshTokenExpiryTime)
@@ -184,7 +211,9 @@ func (um *UserManager) AddNewSessionToUser(userId string, sessionTokenExpiryTime
 	newsession.cache = newCache[string, any]()
 
 	wg.Wait()
-
+    if sessionerr := <-sessionConfigChannel; sessionerr != nil {
+		return  nil,sessionerr
+	}
 	if userCopy.remainingSpace > <-sizeCalculatorChannel {
 		user.Mu.Lock()
 		user.Sessions[sessionId] = newsession
@@ -197,17 +226,18 @@ func (um *UserManager) AddNewSessionToUser(userId string, sessionTokenExpiryTime
 }
 
 func (u *User) AddSessionCache() (*session, error) {
- 
-     usercopy := u.newUserSnapshot()
+
+	usercopy := u.newUserSnapshot()
+	
 
 }
 
-func (u *User) UpdateSessionCache() (*session,error) {
+func (u *User) UpdateSessionCache() (*session, error) {
 
 }
 
 func (u *User) AddorUpdateSessionCache(sessionid, sessionToken, key string, value any) (*session, error) {
-    
+
 	usercopy := u.newUserSnapshot()
 	u.Mu.RLock()
 	session, exists := u.Sessions[sessionid]
